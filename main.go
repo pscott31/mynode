@@ -160,10 +160,9 @@ func main() {
 		return
 	}
 
-	// payloadHash := sha256.New()
-	// payloadHash.Write(payloadBytes)
 	payloadHash := sha256.Sum256(payloadBytes)
-	if binary.Write(buf, binary.LittleEndian, payloadHash[:3]) != nil {
+	payloadHash = sha256.Sum256(payloadHash[:])
+	if _, err = buf.Write(payloadHash[:4]); err != nil {
 		fmt.Println("Error writing payload checksum")
 		return
 	}
