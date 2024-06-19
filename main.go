@@ -44,7 +44,7 @@ func (na NetAddress) MarshalBTC(w io.Writer) error {
 		return err
 	}
 
-	for i := 0; i < 10-len(ipBytes); i++ {
+	for i := 0; i < 16-len(ipBytes); i++ {
 		if err = binary.Write(w, binary.LittleEndian, byte(0)); err != nil {
 			return fmt.Errorf("unable to write address padding: %w", err)
 		}
