@@ -5,8 +5,11 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"math/rand"
 	"net/netip"
 )
+
+const USER_AGENT = "/pscott31-mynode:0.0.1/"
 
 type Version struct {
 	Version     int32
@@ -35,7 +38,9 @@ func NewVersion(protocolVersion int32, nodeServices uint64, timestamp int64, rem
 			Services: nodeServices,
 			IP:       remoteAddrPort,
 		},
-		AddrFrom: NetAddress{},
+		AddrFrom:  NetAddress{},
+		Nonce:     rand.Uint64(),
+		UserAgent: VarString(USER_AGENT),
 	}, nil
 }
 
@@ -57,8 +62,16 @@ func (vp Version) MarshalToWriter(w io.Writer) error {
 		return fmt.Errorf("unable to write recieve address: %w", err)
 	}
 
+	if vp.Version < 106 {
+		return nil
+	}
+
 	if err = vp.AddrFrom.MarshalToWriter(w); err != nil {
 		return fmt.Errorf("unable to write from address: %w", err)
+	}
+
+	if binary.Write(w, binary.LittleEndian, vp.Nonce) != nil {
+		return fmt.Errorf("unable to write nonce: %w", err)
 	}
 
 	if err = vp.UserAgent.MarshalToWriter(w); err != nil {
@@ -67,6 +80,14 @@ func (vp Version) MarshalToWriter(w io.Writer) error {
 
 	if err = binary.Write(w, binary.LittleEndian, vp.StartHeight); err != nil {
 		return fmt.Errorf("unable to write start height: %w", err)
+	}
+
+	if vp.Version < 70001 {
+		return nil
+	}
+
+	if err = binary.Write(w, binary.LittleEndian, vp.Relay); err != nil {
+		return fmt.Errorf("unable to write relay: %w", err)
 	}
 
 	return nil
@@ -89,8 +110,16 @@ func (vp *Version) UnmarshalFromReader(r io.Reader) error {
 		return fmt.Errorf("unable to read receive address: %w", err)
 	}
 
+	if vp.Version < 106 {
+		return nil
+	}
+
 	if err := vp.AddrFrom.UnmarshalFromReader(r); err != nil {
 		return fmt.Errorf("unable to read from address: %w", err)
+	}
+
+	if err := binary.Read(r, binary.LittleEndian, &vp.Nonce); err != nil {
+		return fmt.Errorf("unable to read nonce: %w", err)
 	}
 
 	if err := vp.UserAgent.UnmarshalFromReader(r); err != nil {
@@ -101,5 +130,12 @@ func (vp *Version) UnmarshalFromReader(r io.Reader) error {
 		return fmt.Errorf("unable to read start height: %w", err)
 	}
 
+	if vp.Version < 70001 {
+		return nil
+	}
+
+	if err := binary.Read(r, binary.LittleEndian, &vp.Relay); err != nil {
+		return fmt.Errorf("unable to read start height: %w", err)
+	}
 	return nil
 }

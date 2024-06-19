@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"log"
 )
 
 const MAX_PROTOCOL_MESSAGE_LENGTH = 4 * 1024 * 1024
@@ -17,16 +18,21 @@ type Message struct {
 	Payload  []byte
 }
 
-func NewMessage(magic uint32, messageType MessageType, payload []byte) Message {
-	hash := sha256.Sum256(payload)
+func NewMessage[T Marshallable](magic uint32, messageType MessageType, payload T) Message {
+	payloadBytes, err := MarshalToBytes(payload)
+	if err != nil {
+		log.Fatalln("error marshalling version message payload: ", err.Error())
+	}
+
+	hash := sha256.Sum256(payloadBytes)
 	hash = sha256.Sum256(hash[:])
 
 	return Message{
 		Magic:    magic,
 		Command:  messageType,
-		Length:   uint32(len(payload)),
+		Length:   uint32(len(payloadBytes)),
 		Checksum: binary.LittleEndian.Uint32(hash[:4]),
-		Payload:  payload,
+		Payload:  payloadBytes,
 	}
 }
 

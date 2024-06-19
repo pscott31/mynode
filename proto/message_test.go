@@ -16,17 +16,18 @@ var (
 	EXAMPLE_MESSAGE              = proto.Message{
 		Magic:    42,
 		Command:  "example",
-		Length:   7,          // Assuming the length of the payload
-		Checksum: 0xbb3187e7, // Example checksum
-		Payload:  []byte("payload"),
+		Length:   8,          // Assuming the length of the payload
+		Checksum: 0x805a173f, // Example checksum
+		Payload:  []byte{0x07, 'p', 'a', 'y', 'l', 'o', 'a', 'd'},
 	}
 )
 
 var EXAMPLE_MESSAGE_BYTES = []byte{
 	0x2a, 0x00, 0x00, 0x00, // Magic (42)
 	'e', 'x', 'a', 'm', 'p', 'l', 'e', 0x00, 0x00, 0x00, 0x00, 0x00, // Command ("example" + padding to 12 bytes)
-	0x07, 0x00, 0x00, 0x00, // Length of payload, little endian
-	0xe7, 0x87, 0x31, 0xbb, // Checksum, little endian
+	0x08, 0x00, 0x00, 0x00, // Length of payload, little endian
+	0x3f, 0x17, 0x5a, 0x80, // Checksum, little endian
+	0x07,                              // Payload Size
 	'p', 'a', 'y', 'l', 'o', 'a', 'd', // Payload
 }
 
@@ -34,13 +35,14 @@ var EXAMPLE_MESSAGE_BYTES = []byte{
 var EXAMPLE_INVALID_MESSAGE_BYTES = []byte{
 	0x2a, 0x00, 0x00, 0x00, // Magic (42)
 	'e', 'x', 'a', 'm', 'p', 'l', 'e', 0x00, 0x00, 0x00, 0x00, 0x00, // Command ("example" + padding to 12 bytes)
-	0x07, 0x00, 0x00, 0x00, // Length of payload, little endian
-	0xff, 0xff, 0xff, 0xff, // Checksum, little endian
+	0x08, 0x00, 0x00, 0x00, // Length of payload, little endian
+	0xff, 0xff, 0xff, 0xff, // INCORRECT checksum, little endian
+	0x07,                              // String Length
 	'p', 'a', 'y', 'l', 'o', 'a', 'd', // Payload
 }
 
 func TestMessage_New(t *testing.T) {
-	newMessage := proto.NewMessage(42, proto.MessageType("example"), []byte("payload"))
+	newMessage := proto.NewMessage(42, proto.MessageType("example"), proto.VarString("payload"))
 	assert.Equal(t, EXAMPLE_MESSAGE, newMessage, "The new message should match the expected message")
 }
 
@@ -84,7 +86,7 @@ func TestMessage_UnMarshal_Fail(t *testing.T) {
 }
 
 func TestMessageMarshalUnmarshal(t *testing.T) {
-	originalMessage := proto.NewMessage(42, proto.MessageType("command"), []byte("payload"))
+	originalMessage := proto.NewMessage(42, proto.MessageType("command"), proto.VarString("payload"))
 
 	// Marshal the message to a buffer
 	var buf bytes.Buffer
