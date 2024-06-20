@@ -8,7 +8,10 @@ import (
 	"net/netip"
 )
 
-var IPV4_IPV6_PREFIX = []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF}
+var (
+	IPV4_IPV6_PREFIX = []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF}
+	INVALID_IP_ADDR  = []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
+)
 
 type NetAddress struct {
 	Time     uint32
@@ -56,16 +59,6 @@ func (na NetAddress) MarshalToWriter(w io.Writer) error {
 		return fmt.Errorf("unable to write ip address: %w", err)
 	}
 
-	// for i := 0; i < 16-len(ipBytes); i++ {
-	// 	if err = binary.Write(w, binary.LittleEndian, byte(0)); err != nil {
-	// 		return fmt.Errorf("unable to write address padding: %w", err)
-	// 	}
-	// }
-
-	// if err = binary.Write(w, binary.BigEndian, ipBytes); err != nil {
-	// 	return fmt.Errorf("unable to write address: %w", err)
-	// }
-
 	if err := binary.Write(w, binary.BigEndian, na.IP.Port()); err != nil {
 		return fmt.Errorf("unable to write port: %w", err)
 	}
@@ -89,12 +82,21 @@ func (na *NetAddress) UnmarshalFromReader(r io.Reader) error {
 		return fmt.Errorf("unable to read IP address: %w", err)
 	}
 
-	// Convert IP bytes and port into netip.AddrPort
-	if bytes.Equal(ipBytes[0:12], IPV4_IPV6_PREFIX) {
-		ipBytes = ipBytes[12:]
-	}
+	// If the 16 byte buffer is all zeros, marshal to zero value Addr{}
+	addr := netip.Addr{}
+	if !bytes.Equal(ipBytes, INVALID_IP_ADDR) {
+		// If we have the magic 12 byte prefix, marshal to IPv4 Addr{}
+		if bytes.Equal(ipBytes[0:12], IPV4_IPV6_PREFIX) {
+			ipBytes = ipBytes[12:]
+		}
 
-	addr, ok := netip.AddrFromSlice(ipBytes)
+		// Else marshal to IPv6 Addr{}
+		var ok bool
+		addr, ok = netip.AddrFromSlice(ipBytes)
+		if !ok {
+			return fmt.Errorf("unable to parse IP address: %s", ipBytes)
+		}
+	}
 
 	// Read the port (2 bytes)
 	var port uint16
@@ -102,10 +104,6 @@ func (na *NetAddress) UnmarshalFromReader(r io.Reader) error {
 		return fmt.Errorf("unable to read port: %w", err)
 	}
 
-	if !ok {
-		return fmt.Errorf("unable to parse IP address: %s", ipBytes)
-	}
 	na.IP = netip.AddrPortFrom(addr, port)
-
 	return nil
 }

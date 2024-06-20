@@ -38,11 +38,11 @@ func main() {
 		log.Fatalf("error creating version message payload: %v ", err.Error())
 	}
 
-	// Wrap it up with a ourVersionMsg header
+	// Wrap it up with a message header
 	ourVersionMsg := proto.NewMessage(config.Magic, proto.MSG_VERSION, ourVersion)
 	ourVersionBytes, err := proto.MarshalToBytes(ourVersionMsg)
 	if err != nil {
-		fmt.Println("error marshalling message: ", err.Error())
+		log.Fatalln("error marshalling message: ", err.Error())
 	}
 
 	// Send it down the pipe
@@ -57,6 +57,8 @@ func main() {
 	// 	log.Fatalf("failed writing to file: %s", err)
 	// }
 
+	// Read a message back. A more complete implementation would be more specific with
+	// regards to deadlines etc.. and probably set up a goroutine to poll and dispatch messages.
 	var theirVersionMsg proto.Message
 	if err = theirVersionMsg.UnmarshalFromReader(conn); err != nil {
 		log.Fatalf("error unmarshalling version response message: %v", err)
@@ -78,7 +80,7 @@ func main() {
 	if err = theirVersion.UnmarshalFromReader(bytes.NewBuffer(theirVersionMsg.Payload)); err != nil {
 		log.Fatalf("error unmarshalling version response payload: %v", err)
 	}
-	fmt.Printf("received their version: %+v\n", theirVersion)
+	log.Printf("received their version: %+v\n", theirVersion)
 
 	// Check we're not connected to ourselves
 	if theirVersion.Nonce == ourVersion.Nonce {
@@ -90,5 +92,27 @@ func main() {
 		log.Fatalf("address in response (%s) does not match address of connected peer (%s)", theirVersion.AddrRecv.IP, conn.LocalAddr())
 	}
 
-	// TODO: Send VERACK
+	// Send a 'verack' message in response
+	ourVerAckMsg := proto.NewMessage(config.Magic, proto.MSG_VERSION, proto.VerAck{})
+	ourVerAckBytes, err := proto.MarshalToBytes(ourVerAckMsg)
+	if err != nil {
+		fmt.Println("error marshalling message: ", err.Error())
+	}
+
+	log.Printf("sending version acknowledgement")
+	if _, err := conn.Write(ourVerAckBytes); err != nil {
+		log.Fatalln("Error writing to connection: ", err.Error())
+	}
+
+	for {
+		var theirMsg proto.Message
+		if err = theirMsg.UnmarshalFromReader(conn); err != nil {
+			log.Fatalf("error unmarshalling message: %v", err)
+		}
+		log.Printf("received message: %+v", theirMsg)
+	}
+
+	// Read a verack message back..
+
+	// TODO: choose lowest protocol version?
 }
