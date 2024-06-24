@@ -6,8 +6,10 @@ import (
 	"io"
 )
 
+// A wrapper around a string for marshalling/unmarshalling in the BTC protocol
 type VarString string
 
+// Marshalled as var_int for length, followed by the string itself
 func (vs VarString) MarshalToWriter(w io.Writer) error {
 	var err error
 

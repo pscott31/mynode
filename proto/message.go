@@ -10,6 +10,8 @@ import (
 
 const MAX_PROTOCOL_MESSAGE_LENGTH = 4 * 1024 * 1024
 
+// Each message sent between nodes is wrapped by this header, with the command-specific data
+// stored in the payload.
 type Message struct {
 	Magic    uint32
 	Command  MessageType
@@ -18,6 +20,7 @@ type Message struct {
 	Payload  []byte
 }
 
+// NewMessage wraps a payload up with a message header & calculates the checksum.
 func NewMessage[T Marshallable](magic uint32, messageType MessageType, payload T) Message {
 	payloadBytes, err := MarshalToBytes(payload)
 	if err != nil {

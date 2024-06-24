@@ -11,6 +11,7 @@ import (
 
 const USER_AGENT = "/pscott31-mynode:0.0.1/"
 
+// Version message is the payload used by messages in the initial handshake between two nodes.
 type Version struct {
 	Version     int32
 	Services    uint64

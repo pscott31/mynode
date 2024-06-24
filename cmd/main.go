@@ -13,7 +13,8 @@ import (
 )
 
 func main() {
-	// TODO: Seed the random number generator
+	// Seed the random number generator so our Nonce's aren't predictable
+	// Not needed since go 1.20
 	// rand.Seed(time.Now().UnixNano())
 
 	config := config.Default()
@@ -98,7 +99,6 @@ func main() {
 	if err != nil {
 		fmt.Println("error marshalling message: ", err.Error())
 	}
-
 	log.Printf("sending version acknowledgement")
 	if _, err := conn.Write(ourVerAckBytes); err != nil {
 		log.Fatalln("Error writing to connection: ", err.Error())
@@ -110,9 +110,11 @@ func main() {
 			log.Fatalf("error unmarshalling message: %v", err)
 		}
 		log.Printf("received message: %+v", theirMsg)
+		if theirMsg.Command == proto.MSG_VERACK {
+			// Once we get a VERACK message, consider our hands shaken and quit.
+			// A more complete implementation would pick the lowest compatible version
+			// number, continue to process messages et..
+			break
+		}
 	}
-
-	// Read a verack message back..
-
-	// TODO: choose lowest protocol version?
 }

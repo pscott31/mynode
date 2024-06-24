@@ -8,6 +8,11 @@ import (
 
 type VarInt uint64
 
+// Unsigned integers are encoded in the BTC protocol depending on the size to save space.
+// < 0xFD         1 byte   uint8
+// <= 0xFFFF      3 bytes  0xFD followed by the length as uint16
+// <= 0xFFFFFFFF  5	bytes  0xFE followed by the length as uint32
+// > 0xFFFFFFFF   9 bytes9 0xFF followed by the length as uint64
 func (vi VarInt) MarshalToWriter(w io.Writer) error {
 	var err error
 	switch {
